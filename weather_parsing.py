@@ -23,7 +23,11 @@ def load_weather_data():
     # Vérifier que le fichier a bien été téléchargé et est lisible
     if os.path.exists(output):
         try:
-            return pl.read_parquet(output)
+            df_weather = pl.read_parquet(output)
+            # Réduire à 10% des données
+            sample_size = int(df_weather.shape[0] * 0.1)
+            df_sampled = df_weather.sample(n=sample_size)
+            return df_sampled
         except Exception as e:
             st.error(f"Erreur lors de la lecture du fichier Parquet : {str(e)}")
             return None
@@ -59,10 +63,6 @@ def filter_weather_by_circuit(circuit_name, margin=10, max_size_mb=10):
     # Sélectionner seulement les colonnes pertinentes
     essential_columns = ['fact_latitude', 'fact_longitude', 'fact_temperature', 'gfs_pressure', 'gfs_humidity', 'gfs_wind_speed']
     df_filtered_weather = df_filtered_weather.select(essential_columns)
-
-    # Échantillonner les données pour réduire le nombre de lignes (utiliser Polars sample method)
-    sample_size = int(df_filtered_weather.shape[0] * 0.1)  # Prendre 10% des lignes
-    df_filtered_weather = df_filtered_weather.sample(n=sample_size)
 
     # Sauvegarder les données météo filtrées dans un fichier CSV compressé en mémoire
     if df_filtered_weather.shape[0] > 0:
