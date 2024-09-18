@@ -6,14 +6,14 @@ import zipfile
 import streamlit as st
 import os
 
-# URL Google Drive du fichier Parquet
-file_id = '18w_cf4LhZsb_I7TpyadAdMWcsyvrnRuo'
+# URL Google Drive du fichier Parquet échantillonné
+file_id = '1A9duZC6CUH6aBfGKZ9wRe_UKlmdS9O8l'
 url = f'https://drive.google.com/uc?id={file_id}'
 
 # Télécharger et charger les données météo depuis Google Drive
 @st.cache_data
 def load_weather_data():
-    output = 'weather.parquet'
+    output = 'weather_sample.parquet'  # Nouveau nom pour l'échantillon
     
     # Vérifier si le fichier existe déjà pour éviter de télécharger plusieurs fois
     if not os.path.exists(output):
@@ -23,16 +23,12 @@ def load_weather_data():
     # Vérifier que le fichier a bien été téléchargé et est lisible
     if os.path.exists(output):
         try:
-            df_weather = pl.read_parquet(output)
-            # Réduire à 10% des données
-            sample_size = int(df_weather.shape[0] * 0.1)
-            df_sampled = df_weather.sample(n=sample_size)
-            return df_sampled
+            return pl.read_parquet(output)
         except Exception as e:
             st.error(f"Erreur lors de la lecture du fichier Parquet : {str(e)}")
             return None
     else:
-        st.error("Le fichier weather.parquet n'a pas pu être téléchargé.")
+        st.error("Le fichier weather_sample.parquet n'a pas pu être téléchargé.")
         return None
 
 # Charger les fichiers circuits et weather
