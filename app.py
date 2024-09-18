@@ -5,19 +5,19 @@ from weather_parsing import filter_weather_by_circuit  # Importer la fonction de
 # Utiliser la mise en cache pour les fichiers volumineux
 @st.cache_data
 def load_circuits():
-    return pd.read_csv('C:/Users/mazgo/Downloads/csv/circuits.csv')
+    return pd.read_csv('circuits.csv')
 
 @st.cache_data
 def load_drivers():
-    return pd.read_csv('C:/Users/mazgo/Downloads/csv/drivers.csv')
+    return pd.read_csv('drivers.csv')
 
 @st.cache_data
 def load_results():
-    return pd.read_csv('C:/Users/mazgo/Downloads/csv/results.csv')
+    return pd.read_csv('results.csv')
 
 @st.cache_data
 def load_races():
-    return pd.read_csv('C:/Users/mazgo/Downloads/csv/races.csv')
+    return pd.read_csv('races.csv')
 
 # Charger les fichiers CSV une seule fois grâce à la mise en cache
 circuits_df = load_circuits()
