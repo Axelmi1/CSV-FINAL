@@ -109,3 +109,5 @@ if circuit_name:
         st.write(weather_df)
     else:
         st.write("Aucune donnée météo disponible pour ce circuit.")
+
+print('cdqdqd')
