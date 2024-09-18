@@ -1,120 +1,120 @@
 import streamlit as st
 import pandas as pd
-from weather_parsing import filter_weather_by_circuit  # Importer la fonction de filtrage météo
+import polars as pl
+import gdown
+import io
+import zipfile
+import os
 
-# Utiliser la mise en cache pour les fichiers volumineux
+# URL Google Drive du fichier Parquet
+file_id = '18w_cf4LhZsb_I7TpyadAdMWcsyvrnRuo'
+url = f'https://drive.google.com/uc?id={file_id}'
+
+# Télécharger et charger les données météo depuis Google Drive
 @st.cache_data
-def load_circuits():
-    return pd.read_csv('circuits.csv')
+def load_weather_data():
+    output = 'weather.parquet'
+    
+    # Vérifier si le fichier existe déjà pour éviter de télécharger plusieurs fois
+    if not os.path.exists(output):
+        # Télécharger le fichier à partir de Google Drive
+        gdown.download(url, output, quiet=False)
 
-@st.cache_data
-def load_drivers():
-    return pd.read_csv('drivers.csv')
-
-@st.cache_data
-def load_results():
-    return pd.read_csv('results.csv')
-
-@st.cache_data
-def load_races():
-    return pd.read_csv('races.csv')
-
-# Charger les fichiers CSV une seule fois grâce à la mise en cache
-circuits_df = load_circuits()
-drivers_df = load_drivers()
-results_df = load_results()
-races_df = load_races()
-
-# Utiliser circuits.csv pour lister les circuits disponibles dans la sélection
-available_circuits = circuits_df['name'].unique()
-
-# Interface Streamlit pour sélectionner un circuit
-st.sidebar.header("Sélectionner un circuit")
-selected_circuit = st.sidebar.selectbox('Choisir un circuit', available_circuits)
-
-# Filtrer les données météo uniquement lorsque le circuit change
-if 'selected_circuit' not in st.session_state or st.session_state.selected_circuit != selected_circuit:
-    st.session_state.selected_circuit = selected_circuit
-    with st.spinner(f"Fetching weather data for {selected_circuit}..."):
-        compressed_weather_file = filter_weather_by_circuit(selected_circuit, margin=50)
-
-    if compressed_weather_file:
-        weather_df = pd.read_csv(compressed_weather_file.replace('.zip', '.csv'))  # Charger le fichier CSV extrait
-        st.session_state.weather_df = weather_df
+    # Vérifier que le fichier a bien été téléchargé et est lisible
+    if os.path.exists(output):
+        try:
+            return pl.read_parquet(output)
+        except Exception as e:
+            st.error(f"Erreur lors de la lecture du fichier Parquet : {str(e)}")
+            return None
     else:
-        st.session_state.weather_df = None
+        st.error("Le fichier weather.parquet n'a pas pu être téléchargé.")
+        return None
 
-weather_df = st.session_state.weather_df
+# Charger les fichiers circuits et weather
+@st.cache_data
+def filter_weather_by_circuit(circuit_name, margin=10, max_size_mb=10):
+    # Charger les fichiers circuits et weather
+    circuits_df = pd.read_csv('circuits.csv')  # Chemin relatif vers le fichier CSV des circuits
+    df_weather = load_weather_data()  # Appel à la fonction pour télécharger et charger le fichier Parquet
 
-# Si les données météo existent, continuer l'analyse
-if weather_df is not None:
-    # Afficher les coordonnées du circuit sélectionné
-    circuit_data = circuits_df[circuits_df['name'] == selected_circuit]
+    # Si le fichier météo n'a pas pu être chargé, arrêter la fonction
+    if df_weather is None:
+        return None
+
+    # Obtenir les coordonnées du circuit sélectionné
+    circuit_data = circuits_df[circuits_df['name'] == circuit_name]
+    if circuit_data.empty:
+        return None
+    
     latitude = circuit_data['lat'].values[0]
     longitude = circuit_data['lng'].values[0]
-    st.write(f"Coordonnées du circuit {selected_circuit} :")
-    st.write(f"Latitude: {latitude}, Longitude: {longitude}")
 
-    # Obtenir les circuitId du circuit sélectionné
-    selected_circuit_id = circuit_data['circuitId'].values[0]
+    # Filtrer les données météo pour ce circuit
+    df_filtered_weather = df_weather.filter(
+        (pl.col('fact_latitude').is_between(latitude - margin, latitude + margin)) &
+        (pl.col('fact_longitude').is_between(longitude - margin, longitude + margin))
+    )
+    
+    # Sélectionner seulement les colonnes pertinentes
+    essential_columns = ['fact_latitude', 'fact_longitude', 'fact_temperature', 'gfs_pressure', 'gfs_humidity', 'gfs_wind_speed']
+    df_filtered_weather = df_filtered_weather.select(essential_columns)
 
-    # Filtrer les courses dans races.csv pour le circuit sélectionné
-    selected_race_ids = races_df[races_df['circuitId'] == selected_circuit_id]['raceId'].tolist()
+    # Échantillonner les données pour réduire le nombre de lignes (utiliser Polars sample method)
+    sample_size = int(df_filtered_weather.shape[0] * 0.1)  # Prendre 10% des lignes
+    df_filtered_weather = df_filtered_weather.sample(n=sample_size)
 
-    # Utiliser uniquement les colonnes nécessaires
-    filtered_results_df = results_df[results_df['raceId'].isin(selected_race_ids)].filter(['raceId', 'driverId', 'positionOrder', 'points', 'laps', 'milliseconds'])
+    # Sauvegarder les données météo filtrées dans un fichier CSV compressé en mémoire
+    if df_filtered_weather.shape[0] > 0:
+        # Sauvegarder le CSV dans un buffer en mémoire au lieu de l'écrire sur le disque
+        csv_buffer = io.BytesIO()
+        df_filtered_weather.write_csv(csv_buffer)
+        csv_buffer.seek(0)  # Revenir au début du buffer
 
-    # Sélection du pilote
-    selected_driver = st.sidebar.selectbox('Choisir un pilote', drivers_df['surname'])
-
-    # Filtrer les données pour le pilote sélectionné sur le circuit sélectionné
-    driver_id = drivers_df[drivers_df['surname'] == selected_driver]['driverId'].values[0]
-    driver_data = filtered_results_df[filtered_results_df['driverId'] == driver_id]
-
-    if driver_data.empty:
-        st.write(f"Pas de données pour {selected_driver} sur le circuit {selected_circuit}.")
-    else:
-        # Calculer la position moyenne
-        predicted_position = driver_data['positionOrder'].mean()
-
-        # Ajustement avec plusieurs facteurs météo
-        st.sidebar.header("Paramètres Météo")
+        # Créer un fichier zip dans un buffer en mémoire
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            zipf.writestr(f'{circuit_name}_weather.csv', csv_buffer.getvalue())
         
-        temperature = st.sidebar.slider('Température (°C)', 
-                                        min_value=int(weather_df['fact_temperature'].min()), 
-                                        max_value=int(weather_df['fact_temperature'].max()), 
-                                        value=int(weather_df['fact_temperature'].mean()))
+        zip_buffer.seek(0)  # Revenir au début du buffer
 
-        pressure = st.sidebar.slider('Pression Atmosphérique (hPa)', 
-                                     min_value=int(weather_df['gfs_pressure'].min()), 
-                                     max_value=int(weather_df['gfs_pressure'].max()), 
-                                     value=int(weather_df['gfs_pressure'].mean()))
+        # Retourner le buffer ZIP pour téléchargement
+        return zip_buffer
+    else:
+        return None
 
-        humidity = st.sidebar.slider('Humidité (%)', 
-                                     min_value=int(weather_df['gfs_humidity'].min()), 
-                                     max_value=int(weather_df['gfs_humidity'].max()), 
-                                     value=int(weather_df['gfs_humidity'].mean()))
+# Initialiser la session state pour 'weather_df' si elle n'existe pas encore
+if 'weather_df' not in st.session_state:
+    st.session_state.weather_df = None
 
-        wind_speed = st.sidebar.slider('Vitesse du Vent (km/h)', 
-                                       min_value=int(weather_df['gfs_wind_speed'].min()), 
-                                       max_value=int(weather_df['gfs_wind_speed'].max()), 
-                                       value=int(weather_df['gfs_wind_speed'].mean()))
+# Interface utilisateur Streamlit
+st.title("Filtrer la météo par circuit")
 
-        # Calcul des facteurs d'influence météo
-        temperature_factor = (temperature - weather_df['fact_temperature'].mean()) * 0.05
-        pressure_factor = (pressure - weather_df['gfs_pressure'].mean()) * 0.01
-        humidity_factor = (humidity - weather_df['gfs_humidity'].mean()) * 0.02
-        wind_factor = (wind_speed - weather_df['gfs_wind_speed'].mean()) * 0.03
+# Entrée utilisateur pour le nom du circuit
+circuit_name = st.text_input("Nom du circuit")
 
-        # Ajuster la position prédite en fonction des conditions météo
-        predicted_position_adjusted = predicted_position + temperature_factor + pressure_factor + humidity_factor + wind_factor
+# Filtrer les données météo pour le circuit sélectionné
+if circuit_name:
+    if st.session_state.weather_df is None:
+        with st.spinner(f"Fetching weather data for {circuit_name}..."):
+            zip_file = filter_weather_by_circuit(circuit_name)
+            if zip_file:
+                st.session_state.weather_df = pd.read_csv(io.BytesIO(zip_file.read(zip_file.namelist()[0])))
 
-        # Limiter la prédiction à des valeurs réalistes et arrondir
-        predicted_position_adjusted = max(1, min(int(round(predicted_position_adjusted)), 20))
+    # Accéder aux données météo filtrées
+    weather_df = st.session_state.weather_df
 
-        # Afficher la prédiction de la position (entier)
-        st.write(f"**Prédiction de la position pour {selected_driver} sur le circuit {selected_circuit} :** {predicted_position_adjusted}")
-
-
-else:
-    st.write(f"Aucune donnée météo disponible pour le circuit {selected_circuit}.")
+    # Si les données météo existent, continuer l'analyse
+    if weather_df is not None:
+        st.write("Données météo disponibles :")
+        st.write(weather_df)
+        
+        # Proposer un bouton de téléchargement du fichier ZIP
+        st.download_button(
+            label="Télécharger les données météo compressées",
+            data=zip_file,
+            file_name=f'{circuit_name}_weather.zip',
+            mime='application/zip'
+        )
+    else:
+        st.write("Aucune donnée météo disponible pour ce circuit.")
