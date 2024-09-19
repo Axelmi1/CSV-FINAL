@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import zipfile
 from weather_parsing import filter_weather_by_circuit  # Importer la fonction de filtrage météo
 
 # Utiliser la mise en cache pour les fichiers volumineux
@@ -35,16 +36,26 @@ selected_circuit = st.sidebar.selectbox('Choisir un circuit', available_circuits
 # Filtrer les données météo uniquement lorsque le circuit change
 if 'selected_circuit' not in st.session_state or st.session_state.selected_circuit != selected_circuit:
     st.session_state.selected_circuit = selected_circuit
-    with st.spinner(f"Fetching weather data for {selected_circuit}..."):
+    with st.spinner(f"Récupération des données météo pour {selected_circuit}..."):
         compressed_weather_file = filter_weather_by_circuit(selected_circuit, margin=50)
 
     if compressed_weather_file:
-        weather_df = pd.read_csv(compressed_weather_file.replace('.zip', '.csv'))  # Charger le fichier CSV extrait
+        # Ouvrir le fichier ZIP en mémoire
+        with zipfile.ZipFile(compressed_weather_file) as zip_ref:
+            # Obtenir la liste des fichiers dans le ZIP
+            zip_contents = zip_ref.namelist()
+            # Supposons qu'il n'y a qu'un seul fichier CSV dans le ZIP
+            csv_filename = zip_contents[0]
+            # Ouvrir le fichier CSV à l'intérieur du ZIP
+            with zip_ref.open(csv_filename) as csv_file:
+                # Lire le CSV dans un DataFrame Pandas
+                weather_df = pd.read_csv(csv_file)
         st.session_state.weather_df = weather_df
     else:
         st.session_state.weather_df = None
 
-weather_df = st.session_state.weather_df
+# Récupérer les données météo depuis la session
+weather_df = st.session_state.get('weather_df', None)
 
 # Si les données météo existent, continuer l'analyse
 if weather_df is not None:
@@ -55,14 +66,14 @@ if weather_df is not None:
     st.write(f"Coordonnées du circuit {selected_circuit} :")
     st.write(f"Latitude: {latitude}, Longitude: {longitude}")
 
-    # Obtenir les circuitId du circuit sélectionné
+    # Obtenir le circuitId du circuit sélectionné
     selected_circuit_id = circuit_data['circuitId'].values[0]
 
     # Filtrer les courses dans races.csv pour le circuit sélectionné
     selected_race_ids = races_df[races_df['circuitId'] == selected_circuit_id]['raceId'].tolist()
 
     # Utiliser uniquement les colonnes nécessaires
-    filtered_results_df = results_df[results_df['raceId'].isin(selected_race_ids)].filter(['raceId', 'driverId', 'positionOrder', 'points', 'laps', 'milliseconds'])
+    filtered_results_df = results_df[results_df['raceId'].isin(selected_race_ids)][['raceId', 'driverId', 'positionOrder', 'points', 'laps', 'milliseconds']]
 
     # Sélection du pilote
     selected_driver = st.sidebar.selectbox('Choisir un pilote', drivers_df['surname'])
@@ -79,7 +90,7 @@ if weather_df is not None:
 
         # Ajustement avec plusieurs facteurs météo
         st.sidebar.header("Paramètres Météo")
-        
+
         temperature = st.sidebar.slider('Température (°C)', 
                                         min_value=int(weather_df['fact_temperature'].min()), 
                                         max_value=int(weather_df['fact_temperature'].max()), 
@@ -114,7 +125,6 @@ if weather_df is not None:
 
         # Afficher la prédiction de la position (entier)
         st.write(f"**Prédiction de la position pour {selected_driver} sur le circuit {selected_circuit} :** {predicted_position_adjusted}")
-
 
 else:
     st.write(f"Aucune donnée météo disponible pour le circuit {selected_circuit}.")
