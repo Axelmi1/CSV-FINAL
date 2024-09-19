@@ -90,11 +90,13 @@ if circuit_name:
     zip_file = filter_weather_by_circuit(circuit_name)
     
     if zip_file:
-        # Ouvrir le fichier ZIP depuis le buffer en mémoire
-        with zipfile.ZipFile(zip_file, 'r') as zip_ref:
-            # Extraire le fichier CSV du ZIP et le charger dans pandas
+        # Extraire le fichier CSV à partir du fichier ZIP en mémoire
+        with zipfile.ZipFile(zip_file) as zip_ref:
             with zip_ref.open(f'{circuit_name}_weather.csv') as csv_file:
                 weather_df = pd.read_csv(csv_file)
+        
+        # Stocker les données météo dans la session
+        st.session_state.weather_df = weather_df
 
         # Proposer un bouton de téléchargement du fichier ZIP
         st.download_button(
@@ -103,11 +105,5 @@ if circuit_name:
             file_name=f'{circuit_name}_weather.zip',
             mime='application/zip'
         )
-
-        # Afficher les données météo
-        st.write("Données météo disponibles :")
-        st.write(weather_df)
     else:
         st.write("Aucune donnée météo disponible pour ce circuit.")
-
-print('cdqdqd')
