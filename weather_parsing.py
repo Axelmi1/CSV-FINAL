@@ -87,11 +87,11 @@ circuit_name = st.text_input("Nom du circuit")
 
 if circuit_name:
     # Filtrer les données météo pour le circuit sélectionné
-    zip_file = filter_weather_by_circuit(circuit_name)
+    compressed_weather_file = filter_weather_by_circuit(circuit_name)
     
-    if zip_file:
+    if compressed_weather_file:
         # Ouvrir le fichier ZIP en mémoire
-        with zipfile.ZipFile(zip_file) as zip_ref:
+        with zipfile.ZipFile(compressed_weather_file) as zip_ref:
             # Obtenir la liste des fichiers dans le ZIP
             zip_contents = zip_ref.namelist()
             # Supposons qu'il n'y a qu'un seul fichier CSV dans le ZIP
@@ -107,10 +107,9 @@ if circuit_name:
         # Proposer un bouton de téléchargement du fichier ZIP
         st.download_button(
             label="Télécharger les données météo compressées",
-            data=zip_file.getvalue(),
+            data=compressed_weather_file.getvalue(),
             file_name=f'{circuit_name}_weather.zip',
             mime='application/zip'
         )
     else:
         st.write("Aucune donnée météo disponible pour ce circuit.")
-
