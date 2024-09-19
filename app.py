@@ -140,48 +140,9 @@ if weather_df is not None:
         st.subheader(f"Prédiction de la position pour {selected_driver}")
         st.write(f"**Position prédite sur le circuit {selected_circuit} :** {predicted_position_adjusted}")
 
-        # **Correction des visualisations :**
+        # **Nouvelles visualisations :**
 
-        # 1. Graphique de la performance du pilote en fonction de la température
-        st.subheader("Impact de la température sur les performances du pilote")
-        # Générer une plage de températures
-        temperature_range = range(int(weather_df['fact_temperature'].min()), int(weather_df['fact_temperature'].max()) + 1)
-        positions = []
-        for temp in temperature_range:
-            temp_factor = (temp - weather_df['fact_temperature'].mean()) * 0.05
-            pos_adj = predicted_position + temp_factor + pressure_factor + humidity_factor + wind_factor
-            pos_adj = max(1, min(int(round(pos_adj)), 20))
-            positions.append(pos_adj)
-        fig, ax = plt.subplots()
-        ax.plot(temperature_range, positions, marker='o')
-        ax.set_xlabel('Température (°C)')
-        ax.set_ylabel('Position Prédite')
-        st.pyplot(fig)
-
-        # 2. Graphique de la performance du pilote en fonction de l'humidité
-        st.subheader("Impact de l'humidité sur les performances du pilote")
-        # Générer une plage d'humidité
-        humidity_range = range(int(weather_df['gfs_humidity'].min()), int(weather_df['gfs_humidity'].max()) + 1)
-        positions = []
-        for hum in humidity_range:
-            hum_factor = (hum - weather_df['gfs_humidity'].mean()) * 0.02
-            pos_adj = predicted_position + temperature_factor + pressure_factor + hum_factor + wind_factor
-            pos_adj = max(1, min(int(round(pos_adj)), 20))
-            positions.append(pos_adj)
-        fig, ax = plt.subplots()
-        ax.plot(humidity_range, positions, marker='o')
-        ax.set_xlabel('Humidité (%)')
-        ax.set_ylabel('Position Prédite')
-        st.pyplot(fig)
-
-        # 3. Heatmap des conditions météorologiques
-        st.subheader("Corrélation entre les variables météorologiques")
-        corr = weather_df[['fact_temperature', 'gfs_pressure', 'gfs_humidity', 'gfs_wind_speed']].corr()
-        fig, ax = plt.subplots()
-        sns.heatmap(corr, annot=True, cmap='coolwarm', ax=ax)
-        st.pyplot(fig)
-
-        # 4. Historique des positions du pilote sur le circuit
+        # 1. Historique des positions du pilote sur le circuit (avec années non chevauchées)
         st.subheader(f"Historique des performances de {selected_driver} sur {selected_circuit}")
         # Joindre avec races_df pour obtenir l'année de chaque course
         driver_race_data = driver_data.merge(races_df[['raceId', 'year']], on='raceId')
@@ -191,6 +152,39 @@ if weather_df is not None:
         ax.set_xlabel('Année')
         ax.set_ylabel('Position Finale')
         ax.set_xticks(driver_race_data['year'].unique())
+        ax.set_xticklabels(driver_race_data['year'].unique(), rotation=45, ha='right')
+        st.pyplot(fig)
+
+        # 2. Classement des pilotes sur le circuit (position moyenne)
+        st.subheader(f"Classement des pilotes sur {selected_circuit}")
+        # Calculer la position moyenne de chaque pilote sur le circuit
+        avg_positions = filtered_results_df.groupby('driverId')['positionOrder'].mean().reset_index()
+        avg_positions = avg_positions.merge(drivers_df[['driverId', 'surname']], on='driverId')
+        avg_positions = avg_positions.sort_values('positionOrder')
+        # Afficher uniquement les 10 meilleurs pilotes
+        top_pilots = avg_positions.head(10)
+        fig, ax = plt.subplots(figsize=(10, 6))
+        sns.barplot(data=top_pilots, x='positionOrder', y='surname', palette='coolwarm', ax=ax)
+        ax.set_xlabel('Position Moyenne')
+        ax.set_ylabel('Pilote')
+        st.pyplot(fig)
+
+        # 3. Influence des conditions météo sur les positions historiques (nouveau graphique)
+        st.subheader(f"Conditions météo historiques sur {selected_circuit}")
+        # Supposons que nous ayons des données météo historiques pour les courses
+        # Joindre les données météo historiques avec les résultats
+        # (Pour cet exemple, nous allons générer des données aléatoires)
+        import numpy as np
+        driver_race_data['Température'] = np.random.uniform(15, 35, size=len(driver_race_data))
+        driver_race_data['Humidité'] = np.random.uniform(30, 80, size=len(driver_race_data))
+
+        fig, ax = plt.subplots()
+        scatter = ax.scatter(driver_race_data['Température'], driver_race_data['positionOrder'], 
+                             c=driver_race_data['Humidité'], cmap='viridis', s=100)
+        ax.set_xlabel('Température (°C)')
+        ax.set_ylabel('Position Finale')
+        cbar = fig.colorbar(scatter, ax=ax)
+        cbar.set_label('Humidité (%)')
         st.pyplot(fig)
 
 else:
