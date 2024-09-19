@@ -140,9 +140,9 @@ if weather_df is not None:
         st.subheader(f"Prédiction de la position pour {selected_driver}")
         st.write(f"**Position prédite sur le circuit {selected_circuit} :** {predicted_position_adjusted}")
 
-        # **Nouvelles visualisations :**
+        # **Visualisations mises à jour :**
 
-        # 1. Historique des positions du pilote sur le circuit (avec années non chevauchées)
+        # 1. Historique des positions du pilote sur le circuit (avec années non chevauchées et positions incrémentées de 1 en 1)
         st.subheader(f"Historique des performances de {selected_driver} sur {selected_circuit}")
         # Joindre avec races_df pour obtenir l'année de chaque course
         driver_race_data = driver_data.merge(races_df[['raceId', 'year']], on='raceId')
@@ -153,6 +153,8 @@ if weather_df is not None:
         ax.set_ylabel('Position Finale')
         ax.set_xticks(driver_race_data['year'].unique())
         ax.set_xticklabels(driver_race_data['year'].unique(), rotation=45, ha='right')
+        # Ajuster les ticks de l'axe Y pour qu'ils incrémentent de 1 en 1
+        ax.set_yticks(range(1, int(driver_race_data['positionOrder'].max()) + 1, 1))
         st.pyplot(fig)
 
         # 2. Classement des pilotes sur le circuit (position moyenne)
@@ -179,14 +181,17 @@ if weather_df is not None:
         driver_race_data['Humidité'] = np.random.uniform(30, 80, size=len(driver_race_data))
 
         fig, ax = plt.subplots()
-        scatter = ax.scatter(driver_race_data['Température'], driver_race_data['positionOrder'], 
+        scatter = ax.scatter(driver_race_data['Température'], driver_race_data['positionOrder'],
                              c=driver_race_data['Humidité'], cmap='viridis', s=100)
         ax.set_xlabel('Température (°C)')
         ax.set_ylabel('Position Finale')
         cbar = fig.colorbar(scatter, ax=ax)
         cbar.set_label('Humidité (%)')
+        # Inverser l'axe Y pour que la position 1 soit en haut
+        ax.invert_yaxis()
         st.pyplot(fig)
 
+    # Fin de l'analyse
 else:
     st.write(f"Aucune donnée météo disponible pour le circuit {selected_circuit}.")
 
