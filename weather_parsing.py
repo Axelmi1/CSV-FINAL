@@ -74,42 +74,7 @@ def filter_weather_by_circuit(circuit_name, margin=10, max_size_mb=10):
         
         zip_buffer.seek(0)  # Revenir au début du buffer
 
-        # Retourner le buffer ZIP pour téléchargement
+        # Retourner le buffer ZIP pour utilisation
         return zip_buffer
     else:
         return None
-
-# Interface utilisateur Streamlit
-st.title("Filtrer la météo par circuit")
-
-# Entrée utilisateur pour le nom du circuit
-circuit_name = st.text_input("Nom du circuit")
-
-if circuit_name:
-    # Filtrer les données météo pour le circuit sélectionné
-    compressed_weather_file = filter_weather_by_circuit(circuit_name)
-    
-    if compressed_weather_file:
-        # Ouvrir le fichier ZIP en mémoire
-        with zipfile.ZipFile(compressed_weather_file) as zip_ref:
-            # Obtenir la liste des fichiers dans le ZIP
-            zip_contents = zip_ref.namelist()
-            # Supposons qu'il n'y a qu'un seul fichier CSV dans le ZIP
-            csv_filename = zip_contents[0]
-            # Ouvrir le fichier CSV à l'intérieur du ZIP
-            with zip_ref.open(csv_filename) as csv_file:
-                # Lire le CSV dans un DataFrame Pandas
-                weather_df = pd.read_csv(csv_file)
-        
-        # Stocker les données météo dans la session
-        st.session_state.weather_df = weather_df
-
-        # Proposer un bouton de téléchargement du fichier ZIP
-        st.download_button(
-            label="Télécharger les données météo compressées",
-            data=compressed_weather_file.getvalue(),
-            file_name=f'{circuit_name}_weather.zip',
-            mime='application/zip'
-        )
-    else:
-        st.write("Aucune donnée météo disponible pour ce circuit.")
