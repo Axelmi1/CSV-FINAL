@@ -31,10 +31,10 @@ def load_weather_data():
         st.error("Le fichier weather_sample.parquet n'a pas pu être téléchargé.")
         return None
 
-# Charger les fichiers circuits et weather
+# Charger les fichiers circuits et météo
 @st.cache_data
 def filter_weather_by_circuit(circuit_name, margin=10, max_size_mb=10):
-    # Charger les fichiers circuits et weather
+    # Charger les fichiers circuits et météo
     circuits_df = pd.read_csv('circuits.csv')  # Chemin relatif vers le fichier CSV des circuits
     df_weather = load_weather_data()  # Appel à la fonction pour télécharger et charger le fichier Parquet
 
@@ -62,7 +62,7 @@ def filter_weather_by_circuit(circuit_name, margin=10, max_size_mb=10):
 
     # Sauvegarder les données météo filtrées dans un fichier CSV compressé en mémoire
     if df_filtered_weather.shape[0] > 0:
-        # Sauvegarder le CSV dans un buffer en mémoire au lieu de l'écrire sur le disque
+        # Sauvegarder le CSV dans un buffer en mémoire
         csv_buffer = io.BytesIO()
         df_filtered_weather.write_csv(csv_buffer)
         csv_buffer.seek(0)  # Revenir au début du buffer
@@ -90,9 +90,15 @@ if circuit_name:
     zip_file = filter_weather_by_circuit(circuit_name)
     
     if zip_file:
-        # Extraire le fichier CSV à partir du fichier ZIP en mémoire
+        # Ouvrir le fichier ZIP en mémoire
         with zipfile.ZipFile(zip_file) as zip_ref:
-            with zip_ref.open(f'{circuit_name}_weather.csv') as csv_file:
+            # Obtenir la liste des fichiers dans le ZIP
+            zip_contents = zip_ref.namelist()
+            # Supposons qu'il n'y a qu'un seul fichier CSV dans le ZIP
+            csv_filename = zip_contents[0]
+            # Ouvrir le fichier CSV à l'intérieur du ZIP
+            with zip_ref.open(csv_filename) as csv_file:
+                # Lire le CSV dans un DataFrame Pandas
                 weather_df = pd.read_csv(csv_file)
         
         # Stocker les données météo dans la session
@@ -101,9 +107,10 @@ if circuit_name:
         # Proposer un bouton de téléchargement du fichier ZIP
         st.download_button(
             label="Télécharger les données météo compressées",
-            data=zip_file,
+            data=zip_file.getvalue(),
             file_name=f'{circuit_name}_weather.zip',
             mime='application/zip'
         )
     else:
         st.write("Aucune donnée météo disponible pour ce circuit.")
+
