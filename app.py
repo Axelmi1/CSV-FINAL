@@ -85,7 +85,8 @@ if weather_df is not None:
     selected_circuit_id = circuit_data['circuitId'].values[0]
 
     # Filtrer les courses dans races.csv pour le circuit sélectionné
-    selected_race_ids = races_df[races_df['circuitId'] == selected_circuit_id]['raceId'].tolist()
+    selected_races = races_df[races_df['circuitId'] == selected_circuit_id]
+    selected_race_ids = selected_races['raceId'].tolist()
 
     # Utiliser uniquement les colonnes nécessaires
     filtered_results_df = results_df[results_df['raceId'].isin(selected_race_ids)][['raceId', 'driverId', 'positionOrder', 'points', 'laps', 'milliseconds']]
@@ -139,20 +140,36 @@ if weather_df is not None:
         st.subheader(f"Prédiction de la position pour {selected_driver}")
         st.write(f"**Position prédite sur le circuit {selected_circuit} :** {predicted_position_adjusted}")
 
-        # **Ajout de visualisations :**
+        # **Correction des visualisations :**
 
         # 1. Graphique de la performance du pilote en fonction de la température
         st.subheader("Impact de la température sur les performances du pilote")
+        # Générer une plage de températures
+        temperature_range = range(int(weather_df['fact_temperature'].min()), int(weather_df['fact_temperature'].max()) + 1)
+        positions = []
+        for temp in temperature_range:
+            temp_factor = (temp - weather_df['fact_temperature'].mean()) * 0.05
+            pos_adj = predicted_position + temp_factor + pressure_factor + humidity_factor + wind_factor
+            pos_adj = max(1, min(int(round(pos_adj)), 20))
+            positions.append(pos_adj)
         fig, ax = plt.subplots()
-        sns.scatterplot(x=weather_df['fact_temperature'], y=predicted_position_adjusted, ax=ax)
+        ax.plot(temperature_range, positions, marker='o')
         ax.set_xlabel('Température (°C)')
         ax.set_ylabel('Position Prédite')
         st.pyplot(fig)
 
         # 2. Graphique de la performance du pilote en fonction de l'humidité
         st.subheader("Impact de l'humidité sur les performances du pilote")
+        # Générer une plage d'humidité
+        humidity_range = range(int(weather_df['gfs_humidity'].min()), int(weather_df['gfs_humidity'].max()) + 1)
+        positions = []
+        for hum in humidity_range:
+            hum_factor = (hum - weather_df['gfs_humidity'].mean()) * 0.02
+            pos_adj = predicted_position + temperature_factor + pressure_factor + hum_factor + wind_factor
+            pos_adj = max(1, min(int(round(pos_adj)), 20))
+            positions.append(pos_adj)
         fig, ax = plt.subplots()
-        sns.scatterplot(x=weather_df['gfs_humidity'], y=predicted_position_adjusted, ax=ax)
+        ax.plot(humidity_range, positions, marker='o')
         ax.set_xlabel('Humidité (%)')
         ax.set_ylabel('Position Prédite')
         st.pyplot(fig)
@@ -166,10 +183,14 @@ if weather_df is not None:
 
         # 4. Historique des positions du pilote sur le circuit
         st.subheader(f"Historique des performances de {selected_driver} sur {selected_circuit}")
+        # Joindre avec races_df pour obtenir l'année de chaque course
+        driver_race_data = driver_data.merge(races_df[['raceId', 'year']], on='raceId')
+        driver_race_data = driver_race_data.sort_values('year')
         fig, ax = plt.subplots()
-        sns.lineplot(data=driver_data, x='raceId', y='positionOrder', marker='o', ax=ax)
-        ax.set_xlabel('ID de la Course')
+        sns.lineplot(data=driver_race_data, x='year', y='positionOrder', marker='o', ax=ax)
+        ax.set_xlabel('Année')
         ax.set_ylabel('Position Finale')
+        ax.set_xticks(driver_race_data['year'].unique())
         st.pyplot(fig)
 
 else:
