@@ -52,7 +52,7 @@ if 'selected_circuit' not in st.session_state or st.session_state.selected_circu
     st.session_state.selected_driver = selected_driver
 
     with st.spinner(f"🔍 Récupération des données météo pour {selected_circuit}..."):
-        compressed_weather_file = filter_weather_by_circuit(selected_circuit, margin=50)
+        compressed_weather_file = filter_weather_by_circuit(selected_circuit, margin=2)
 
     if compressed_weather_file:
         # 📂 Ouvrir le fichier ZIP en mémoire
@@ -136,9 +136,13 @@ if weather_df is not None:
         # 🔒 Limiter la prédiction à des valeurs réalistes et arrondir
         predicted_position_adjusted = max(1, min(int(round(predicted_position_adjusted)), 20))
 
-        # 🎯 Afficher la prédiction de la position (entier)
+        # 🎯 Afficher la prédiction de la position (entier) avec st.metric
         st.subheader(f"🔮 Prédiction de la position pour {selected_driver}")
-        st.write(f"**🏁 Position prédite sur le circuit {selected_circuit} :** {predicted_position_adjusted}")
+        st.metric(
+            label=f"🏁 Position prédite sur le circuit {selected_circuit}",
+            value=predicted_position_adjusted,
+            delta=None  # Vous pouvez ajouter un delta si vous souhaitez montrer une variation
+        )
 
         # 📊 **Visualisations mises à jour :**
 
@@ -204,6 +208,15 @@ st.markdown(
     }
     .st-header {
         background-color: #f0f2f6;
+    }
+    /* Personnaliser le texte de la prédiction */
+    .stMetric > div:first-child {
+        font-size: 24px;
+        font-weight: bold;
+    }
+    .stMetric > div:nth-child(2) {
+        font-size: 48px;
+        color: #FF4B4B;
     }
     </style>
     """,
