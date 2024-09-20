@@ -52,7 +52,7 @@ if 'selected_circuit' not in st.session_state or st.session_state.selected_circu
     st.session_state.selected_driver = selected_driver
 
     with st.spinner(f"🔍 Récupération des données météo pour {selected_circuit}..."):
-        compressed_weather_file = filter_weather_by_circuit(selected_circuit, margin=10)
+        compressed_weather_file = filter_weather_by_circuit(selected_circuit, margin=50)
 
     if compressed_weather_file:
         # 📂 Ouvrir le fichier ZIP en mémoire
