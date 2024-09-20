@@ -136,9 +136,36 @@ if weather_df is not None:
         # 🔒 Limiter la prédiction à des valeurs réalistes et arrondir
         predicted_position_adjusted = max(1, min(int(round(predicted_position_adjusted)), 20))
 
-        # 🎯 Afficher la prédiction de la position (entier)
+        # 🎯 Afficher la prédiction de la position (entier) avec style amélioré
         st.subheader(f"🔮 Prédiction de la position pour {selected_driver}")
-        st.write(f"**🏁 Position prédite sur le circuit {selected_circuit} :** {predicted_position_adjusted}")
+        st.markdown(
+            f"""
+            <div style="
+                background-color: #FFD700; 
+                padding: 20px; 
+                border-radius: 10px; 
+                text-align: center;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+                margin-bottom: 20px;
+            ">
+                <h1 style="
+                    color: #FF4500; 
+                    font-size: 48px; 
+                    margin: 0;
+                    font-family: 'Arial Black', Gadget, sans-serif;
+                ">
+                    🏁 Position prédite sur le circuit 
+                    <span style="color: #0000FF;">{selected_circuit}</span> : 
+                    <span style="
+                        color: #008000; 
+                        font-weight: bold;
+                        text-shadow: 2px 2px #FFFAF0;
+                    ">{predicted_position_adjusted}</span>
+                </h1>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
 
         # 📊 **Visualisations mises à jour :**
 
@@ -157,7 +184,7 @@ if weather_df is not None:
         ax.set_yticks(range(1, int(driver_race_data['positionOrder'].max()) + 1, 1))
         st.pyplot(fig)
 
-        # 2. 🏆 Classement des pilotes sur le circuit (position moyenne)
+        # 2. 🏅 Classement des pilotes sur le circuit (position moyenne)
         st.subheader(f"🏅 Classement des pilotes sur {selected_circuit}")
         # 📊 Calculer la position moyenne de chaque pilote sur le circuit
         avg_positions = filtered_results_df.groupby('driverId')['positionOrder'].mean().reset_index()
@@ -204,6 +231,11 @@ st.markdown(
     }
     .st-header {
         background-color: #f0f2f6;
+    }
+    /* Styles supplémentaires pour améliorer l'apparence */
+    .css-1d391kg {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
     }
     </style>
     """,
