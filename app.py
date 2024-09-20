@@ -136,13 +136,9 @@ if weather_df is not None:
         # 🔒 Limiter la prédiction à des valeurs réalistes et arrondir
         predicted_position_adjusted = max(1, min(int(round(predicted_position_adjusted)), 20))
 
-        # 🎯 Afficher la prédiction de la position (entier) avec st.metric
+        # 🎯 Afficher la prédiction de la position (entier)
         st.subheader(f"🔮 Prédiction de la position pour {selected_driver}")
-        st.metric(
-            label=f"🏁 Position prédite sur le circuit {selected_circuit}",
-            value=predicted_position_adjusted,
-            delta=None  # Vous pouvez ajouter un delta si vous souhaitez montrer une variation
-        )
+        st.write(f"**🏁 Position prédite sur le circuit {selected_circuit} :** {predicted_position_adjusted}")
 
         # 📊 **Visualisations mises à jour :**
 
@@ -208,15 +204,6 @@ st.markdown(
     }
     .st-header {
         background-color: #f0f2f6;
-    }
-    /* Personnaliser le texte de la prédiction */
-    .stMetric > div:first-child {
-        font-size: 24px;
-        font-weight: bold;
-    }
-    .stMetric > div:nth-child(2) {
-        font-size: 48px;
-        color: #FF4B4B;
     }
     </style>
     """,
